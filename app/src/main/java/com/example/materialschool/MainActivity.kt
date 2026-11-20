@@ -1,9 +1,116 @@
 package com.example.materialschool
+
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
-import android.webkit.*
+import android.view.ViewGroup
+import android.webkit.CookieManager
+import android.webkit.WebChromeClient
+import android.webkit.WebResourceRequest
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
-import androidx.appcompat.app.AppCompatActivity
-class MainActivity: AppCompatActivity(){ @SuppressLint("SetJavaScriptEnabled") override fun onCreate(b:Bundle?){super.onCreate(b); val w=WebView(this); w.settings.javaScriptEnabled=true; w.settings.domStorageEnabled=true; CookieManager.getInstance().setAcceptCookie(true); w.webChromeClient=WebChromeClient(); w.webViewClient=object:WebViewClient(){override fun shouldOverrideUrlLoading(v:WebView,r:WebResourceRequest):Boolean{val u=r.url.toString(); if(u.startsWith("https://myschool.edu.ru/")||u.startsWith("https://gosuslugi.ru/")||u.startsWith("https://www.gosuslugi.ru/"))return false; startActivity(Intent(Intent.ACTION_VIEW,Uri.parse(u))); return true}}; w.loadUrl("https://myschool.edu.ru/"); setContentView(w); onBackPressedDispatcher.addCallback(this,object:OnBackPressedCallback(true){override fun handleOnBackPressed(){if(w.canGoBack())w.goBack()else finish()}})}}
+
+class MainActivity : ComponentActivity() {
+
+    private lateinit var web: WebView
+
+    @SuppressLint("SetJavaScriptEnabled")
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+
+        web = WebView(this).apply {
+
+            setBackgroundColor(Color.WHITE)
+
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                databaseEnabled = true
+                loadsImagesAutomatically = true
+
+                mixedContentMode =
+                    WebSettings.MIXED_CONTENT_NEVER_ALLOW
+
+                builtInZoomControls = false
+                displayZoomControls = false
+            }
+
+            // Сохраняем авторизацию и cookies
+            CookieManager.getInstance().setAcceptCookie(true)
+            CookieManager.getInstance()
+                .setAcceptThirdPartyCookies(this, true)
+
+            webChromeClient = WebChromeClient()
+
+            webViewClient = object : WebViewClient() {
+
+                override fun shouldOverrideUrlLoading(
+                    view: WebView,
+                    request: WebResourceRequest
+                ): Boolean {
+
+                    val url = request.url.toString()
+
+                    // Официальная «Моя школа» остаётся внутри приложения
+                    if (
+                        url.startsWith("https://myschool.edu.ru/") ||
+                        url.startsWith("https://gosuslugi.ru/") ||
+                        url.startsWith("https://www.gosuslugi.ru/")
+                    ) {
+                        return false
+                    }
+
+                    // Остальные сайты открываем обычным браузером
+                    return try {
+                        startActivity(
+                            Intent(
+                                Intent.ACTION_VIEW,
+                                Uri.parse(url)
+                            )
+                        )
+                        true
+                    } catch (_: Exception) {
+                        false
+                    }
+                }
+            }
+
+            // Загружаем настоящую веб-версию
+            loadUrl("https://myschool.edu.ru/")
+        }
+
+        setContentView(web)
+
+        // Кнопка «Назад» работает как в браузере
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+
+                override fun handleOnBackPressed() {
+
+                    if (web.canGoBack()) {
+                        web.goBack()
+                    } else {
+                        finish()
+                    }
+                }
+            }
+        )
+    }
+
+    override fun onDestroy() {
+        web.stopLoading()
+        web.destroy()
+        super.onDestroy()
+    }
+}
